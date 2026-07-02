@@ -1,0 +1,577 @@
+--[[
+    ANIMA HOSPITAL ULTRA HUB v3.0
+    Coloque este código em: https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPO/main/anima_hub.lua
+]]
+
+-- // Serviços
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local TS = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local WS = game:GetService("Workspace")
+
+-- // Variáveis de Estado
+local shifting = false
+local flying = false
+local noclip = false
+local godmode = false
+local invisible = false
+local espActive = false
+local flyBodyGyro = nil
+local flyBodyVelocity = nil
+
+-- // Função Tween
+local function Tween(obj, props, dur)
+    return TS:Create(obj, TweenInfo.new(dur or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+end
+
+-- // Notificação
+local function Notify(title, msg)
+    spawn(function()
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0, 250, 0, 60)
+        frame.Position = UDim2.new(1, -260, 0, 10)
+        frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        frame.BorderSizePixel = 0
+        frame.Parent = gui
+        
+        Instance.new("UIStroke", frame).Color = Color3.fromRGB(180, 0, 0)
+        Instance.new("UIStroke", frame).Thickness = 1
+        
+        local t = Instance.new("TextLabel", frame)
+        t.Size = UDim2.new(1, -10, 0, 20)
+        t.Position = UDim2.new(0, 5, 0, 5)
+        t.BackgroundTransparency = 1
+        t.Text = title
+        t.TextColor3 = Color3.fromRGB(255, 50, 50)
+        t.Font = Enum.Font.Code
+        t.TextSize = 12
+        t.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local m = Instance.new("TextLabel", frame)
+        m.Size = UDim2.new(1, -10, 0, 30)
+        m.Position = UDim2.new(0, 5, 0, 25)
+        m.BackgroundTransparency = 1
+        m.Text = msg
+        m.TextColor3 = Color3.fromRGB(180, 180, 180)
+        m.Font = Enum.Font.Code
+        m.TextSize = 10
+        m.TextXAlignment = Enum.TextXAlignment.Left
+        m.TextWrapped = true
+        
+        Tween(frame, {BackgroundTransparency = 0.2}, 0.3)
+        task.wait(3)
+        Tween(frame, {BackgroundTransparency = 1, Position = UDim2.new(1, 0, 0, 10)}, 0.3)
+        task.wait(0.3)
+        frame:Destroy()
+    end)
+end
+
+-- // ScreenGui Principal
+local gui = Instance.new("ScreenGui")
+gui.Name = "AnimaHospitalHub"
+gui.Parent = CoreGui:FindFirstChild("RobloxGui") or LP:WaitForChild("PlayerGui")
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- // Tela de Carregamento
+local loadFrame = Instance.new("Frame")
+loadFrame.Size = UDim2.new(1, 0, 1, 0)
+loadFrame.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+loadFrame.BorderSizePixel = 0
+loadFrame.ZIndex = 100
+loadFrame.Parent = gui
+
+local loadTitle = Instance.new("TextLabel")
+loadTitle.Size = UDim2.new(0, 500, 0, 80)
+loadTitle.Position = UDim2.new(0.5, -250, 0.4, -40)
+loadTitle.BackgroundTransparency = 1
+loadTitle.Text = "ANIMA HOSPITAL"
+loadTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+loadTitle.Font = Enum.Font.Arcade
+loadTitle.TextSize = 56
+loadTitle.ZIndex = 101
+loadTitle.Parent = loadFrame
+
+local loadStatus = Instance.new("TextLabel")
+loadStatus.Size = UDim2.new(0, 400, 0, 30)
+loadStatus.Position = UDim2.new(0.5, -200, 0.5, 10)
+loadStatus.BackgroundTransparency = 1
+loadStatus.Text = "[ INICIALIZANDO SISTEMA... ]"
+loadStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
+loadStatus.Font = Enum.Font.Code
+loadStatus.TextSize = 14
+loadStatus.ZIndex = 101
+loadStatus.Parent = loadFrame
+
+task.wait(0.6)
+loadStatus.Text = "[ VERIFICANDO EXECUTOR... ]"
+task.wait(0.6)
+loadStatus.Text = "[ INJETANDO MÓDULOS ESP... ]"
+task.wait(0.5)
+loadStatus.Text = "[ CARREGANDO INTERFACE... ]"
+task.wait(0.5)
+loadStatus.Text = "[ PRONTO ]"
+task.wait(0.3)
+loadFrame:Destroy()
+
+-- // Painel Principal
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 520, 0, 360)
+main.Position = UDim2.new(0.5, -260, 0.5, -180)
+main.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+Instance.new("UIStroke", main).Color = Color3.fromRGB(180, 0, 0)
+Instance.new("UIStroke", main).Thickness = 1.5
+
+-- // Sistema de Arrasto
+local dragging, dragStart, startPos
+
+main.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = main.Position
+    end
+end)
+
+main.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- // Cabeçalho
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 40)
+header.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+header.BorderSizePixel = 0
+header.Parent = main
+
+Instance.new("UIStroke", header).Color = Color3.fromRGB(180, 0, 0)
+Instance.new("UIStroke", header).Thickness = 1
+
+local logo = Instance.new("TextLabel")
+logo.Size = UDim2.new(0, 250, 1, 0)
+logo.Position = UDim2.new(0, 10, 0, 0)
+logo.BackgroundTransparency = 1
+logo.Text = "ANIMA.HOSPITAL"
+logo.TextColor3 = Color3.fromRGB(220, 0, 0)
+logo.Font = Enum.Font.Arcade
+logo.TextSize = 20
+logo.TextXAlignment = Enum.TextXAlignment.Left
+logo.Parent = header
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -40, 0, 5)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 14
+closeBtn.BorderSizePixel = 0
+closeBtn.Parent = header
+
+closeBtn.MouseButton1Click:Connect(function()
+    if LP.Character and LP.Character:FindFirstChild("Humanoid") then
+        LP.Character.Humanoid.WalkSpeed = 16
+        LP.Character.Humanoid.JumpPower = 50
+    end
+    gui:Destroy()
+end)
+
+closeBtn.MouseEnter:Connect(function()
+    Tween(closeBtn, {BackgroundColor3 = Color3.fromRGB(220, 0, 0)}, 0.2)
+end)
+closeBtn.MouseLeave:Connect(function()
+    Tween(closeBtn, {BackgroundColor3 = Color3.fromRGB(180, 0, 0)}, 0.2)
+end)
+
+-- // Navegação
+local nav = Instance.new("Frame")
+nav.Size = UDim2.new(0, 120, 1, -50)
+nav.Position = UDim2.new(0, 8, 0, 45)
+nav.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+nav.BorderSizePixel = 0
+nav.Parent = main
+
+Instance.new("UIStroke", nav).Color = Color3.fromRGB(30, 30, 30)
+Instance.new("UIStroke", nav).Thickness = 1
+
+local navList = Instance.new("UIListLayout")
+navList.Padding = UDim.new(0, 2)
+navList.Parent = nav
+
+-- // Conteúdo
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, -140, 1, -60)
+content.Position = UDim2.new(0, 135, 0, 50)
+content.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+content.BorderSizePixel = 0
+content.ClipsDescendants = true
+content.Parent = main
+
+Instance.new("UIStroke", content).Color = Color3.fromRGB(30, 30, 30)
+Instance.new("UIStroke", content).Thickness = 1
+
+-- // Sistema de Páginas
+local pages = {}
+local buttons = {}
+local active = nil
+
+local function CreateTab(name)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -6, 0, 34)
+    btn.Position = UDim2.new(0, 3, 0, 0)
+    btn.Text = "> " .. name
+    btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    btn.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+    btn.Font = Enum.Font.Code
+    btn.TextSize = 11
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.BorderSizePixel = 0
+    btn.AutoButtonColor = false
+    btn.Parent = nav
+    
+    local btnStroke = Instance.new("UIStroke", btn)
+    btnStroke.Color = Color3.fromRGB(35, 35, 35)
+    btnStroke.Thickness = 1
+    
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, -10, 1, -10)
+    page.Position = UDim2.new(0, 5, 0, 5)
+    page.BackgroundTransparency = 1
+    page.Visible = false
+    page.ScrollBarThickness = 2
+    page.ScrollBarImageColor3 = Color3.fromRGB(180, 0, 0)
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.BorderSizePixel = 0
+    page.Parent = content
+    
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.Parent = page
+    
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end)
+    
+    btn.MouseButton1Click:Connect(function()
+        if active == page then return end
+        active = page
+        
+        for _, p in pairs(pages) do p.Visible = false end
+        for _, b in pairs(buttons) do
+            Tween(b, {BackgroundColor3 = Color3.fromRGB(18, 18, 18), TextColor3 = Color3.fromRGB(150, 150, 150)}, 0.2)
+            if b:FindFirstChildOfClass("UIStroke") then
+                Tween(b:FindFirstChildOfClass("UIStroke"), {Color = Color3.fromRGB(35, 35, 35)}, 0.2)
+            end
+        end
+        
+        page.Visible = true
+        Tween(btn, {BackgroundColor3 = Color3.fromRGB(40, 5, 5), TextColor3 = Color3.fromRGB(255, 50, 50)}, 0.2)
+        Tween(btnStroke, {Color = Color3.fromRGB(180, 0, 0)}, 0.2)
+    end)
+    
+    btn.MouseEnter:Connect(function()
+        if active ~= page then
+            Tween(btn, {BackgroundColor3 = Color3.fromRGB(25, 25, 25), TextColor3 = Color3.fromRGB(200, 200, 200)}, 0.15)
+        end
+    end)
+    btn.MouseLeave:Connect(function()
+        if active ~= page then
+            Tween(btn, {BackgroundColor3 = Color3.fromRGB(18, 18, 18), TextColor3 = Color3.fromRGB(150, 150, 150)}, 0.15)
+        end
+    end)
+    
+    table.insert(pages, page)
+    table.insert(buttons, btn)
+    return page
+end
+
+local function AddButton(page, text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 36)
+    btn.Text = ">> " .. text
+    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    btn.Font = Enum.Font.Code
+    btn.TextSize = 11
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.BorderSizePixel = 0
+    btn.AutoButtonColor = false
+    btn.Parent = page
+    
+    local btnStroke = Instance.new("UIStroke", btn)
+    btnStroke.Color = Color3.fromRGB(40, 40, 40)
+    btnStroke.Thickness = 1
+    
+    btn.MouseEnter:Connect(function()
+        Tween(btn, {BackgroundColor3 = Color3.fromRGB(30, 10, 10)}, 0.15)
+        Tween(btnStroke, {Color = Color3.fromRGB(180, 0, 0)}, 0.15)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+    btn.MouseLeave:Connect(function()
+        Tween(btn, {BackgroundColor3 = Color3.fromRGB(20, 20, 20)}, 0.15)
+        Tween(btnStroke, {Color = Color3.fromRGB(40, 40, 40)}, 0.15)
+        btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    end)
+    btn.MouseButton1Click:Connect(function()
+        Tween(btn, {BackgroundColor3 = Color3.fromRGB(60, 20, 20)}, 0.1)
+        task.wait(0.1)
+        Tween(btn, {BackgroundColor3 = Color3.fromRGB(30, 10, 10)}, 0.2)
+        callback()
+    end)
+    
+    return btn
+end
+
+-- ==========================================
+-- FUNCIONALIDADES
+-- ==========================================
+
+-- // ABA ESP
+local espPage = CreateTab("ESP")
+
+AddButton(espPage, "Ativar ESP (Highlight)", function()
+    espActive = true
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LP and plr.Character then
+            local hl = Instance.new("Highlight")
+            hl.Name = "ESP_Highlight"
+            hl.FillColor = Color3.fromRGB(255, 0, 0)
+            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+            hl.Parent = plr.Character
+        end
+    end
+    Notify("ESP", "ESP Ativado!")
+end)
+
+AddButton(espPage, "ESP NameTags", function()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LP and plr.Character and plr.Character:FindFirstChild("Head") then
+            local head = plr.Character.Head
+            if not head:FindFirstChild("ESP_NameTag") then
+                local bill = Instance.new("BillboardGui")
+                bill.Name = "ESP_NameTag"
+                bill.Size = UDim2.new(0, 200, 0, 30)
+                bill.AlwaysOnTop = true
+                bill.StudsOffset = Vector3.new(0, 3, 0)
+                bill.Parent = head
+                
+                local label = Instance.new("TextLabel", bill)
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = plr.Name
+                label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                label.Font = Enum.Font.Code
+                label.TextSize = 12
+            end
+        end
+    end
+    Notify("ESP", "NameTags Ativados!")
+end)
+
+AddButton(espPage, "Remover ESP", function()
+    espActive = false
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr.Character then
+            local hl = plr.Character:FindFirstChild("ESP_Highlight")
+            if hl then hl:Destroy() end
+            if plr.Character:FindFirstChild("Head") then
+                local tag = plr.Character.Head:FindFirstChild("ESP_NameTag")
+                if tag then tag:Destroy() end
+            end
+        end
+    end
+    Notify("ESP", "ESP Removido!")
+end)
+
+-- // ABA AUTO SHIFT
+local shiftPage = CreateTab("AutoShift")
+
+AddButton(shiftPage, "AutoShift ON/OFF", function()
+    shifting = not shifting
+    if shifting then
+        Notify("AutoShift", "Farm de Turno Ativado!")
+        spawn(function()
+            while shifting do
+                if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+                    LP.Character.HumanoidRootPart.CFrame = LP.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0.1, 0)
+                end
+                task.wait(3)
+            end
+        end)
+    else
+        Notify("AutoShift", "Farm de Turno Desativado!")
+    end
+end)
+
+AddButton(shiftPage, "Auto Coletar Pacientes", function()
+    Notify("AutoShift", "Procurando pacientes...")
+    spawn(function()
+        while shifting do
+            if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+                for _, obj in pairs(WS:GetDescendants()) do
+                    if obj:IsA("ProximityPrompt") and obj.Enabled then
+                        local dist = (LP.Character.HumanoidRootPart.Position - obj.Parent.Position).Magnitude
+                        if dist < 10 then
+                            fireproximityprompt(obj)
+                        end
+                    end
+                end
+            end
+            task.wait(2)
+        end
+    end)
+end)
+
+-- // ABA MOVIMENTAÇÃO
+local movePage = CreateTab("Movimento")
+
+AddButton(movePage, "Speed Boost (30)", function()
+    if LP.Character and LP.Character:FindFirstChild("Humanoid") then
+        LP.Character.Humanoid.WalkSpeed = 30
+        Notify("Movimento", "Velocidade: 30")
+    end
+end)
+
+AddButton(movePage, "Super Jump (100)", function()
+    if LP.Character and LP.Character:FindFirstChild("Humanoid") then
+        LP.Character.Humanoid.JumpPower = 100
+        LP.Character.Humanoid.UseJumpPower = true
+        Notify("Movimento", "Super Pulo Ativado!")
+    end
+end)
+
+AddButton(movePage, "Noclip ON/OFF", function()
+    noclip = not noclip
+    if noclip then
+        Notify("Movimento", "Noclip Ativado!")
+        spawn(function()
+            while noclip do
+                if LP.Character then
+                    for _, part in pairs(LP.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+                task.wait()
+            end
+        end)
+    else
+        if LP.Character then
+            for _, part in pairs(LP.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+        Notify("Movimento", "Noclip Desativado!")
+    end
+end)
+
+AddButton(movePage, "Fly Mode ON/OFF", function()
+    flying = not flying
+    if flying then
+        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = LP.Character.HumanoidRootPart
+            
+            flyBodyGyro = Instance.new("BodyGyro", hrp)
+            flyBodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
+            
+            flyBodyVelocity = Instance.new("BodyVelocity", hrp)
+            flyBodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+            
+            Notify("Fly", "Fly Ativado! Use WASD + Space/Ctrl")
+            
+            spawn(function()
+                while flying and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") do
+                    flyBodyGyro.CFrame = workspace.CurrentCamera.CFrame
+                    
+                    local vel = Vector3.new(0, 0, 0)
+                    if UIS:IsKeyDown(Enum.KeyCode.W) then vel = vel + workspace.CurrentCamera.CFrame.LookVector * 50 end
+                    if UIS:IsKeyDown(Enum.KeyCode.S) then vel = vel - workspace.CurrentCamera.CFrame.LookVector * 50 end
+                    if UIS:IsKeyDown(Enum.KeyCode.A) then vel = vel - workspace.CurrentCamera.CFrame.RightVector * 50 end
+                    if UIS:IsKeyDown(Enum.KeyCode.D) then vel = vel + workspace.CurrentCamera.CFrame.RightVector * 50 end
+                    if UIS:IsKeyDown(Enum.KeyCode.Space) then vel = vel + Vector3.new(0, 50, 0) end
+                    if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then vel = vel - Vector3.new(0, 50, 0) end
+                    
+                    flyBodyVelocity.Velocity = vel
+                    task.wait()
+                end
+                
+                if flyBodyGyro then flyBodyGyro:Destroy() end
+                if flyBodyVelocity then flyBodyVelocity:Destroy() end
+            end)
+        end
+    else
+        if flyBodyGyro then flyBodyGyro:Destroy() end
+        if flyBodyVelocity then flyBodyVelocity:Destroy() end
+        Notify("Fly", "Fly Desativado!")
+    end
+end)
+
+AddButton(movePage, "Resetar Movimento", function()
+    noclip = false
+    flying = false
+    if flyBodyGyro then flyBodyGyro:Destroy() end
+    if flyBodyVelocity then flyBodyVelocity:Destroy() end
+    
+    if LP.Character then
+        if LP.Character:FindFirstChild("Humanoid") then
+            LP.Character.Humanoid.WalkSpeed = 16
+            LP.Character.Humanoid.JumpPower = 50
+            LP.Character.Humanoid.UseJumpPower = false
+        end
+        for _, part in pairs(LP.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+    Notify("Movimento", "Movimento Resetado!")
+end)
+
+-- // ABA TELEPORTES
+local telePage = CreateTab("Teleportes")
+
+AddButton(telePage, "Teleportar ao Lobby", function()
+    if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+        local lobby = WS:FindFirstChild("Lobby") or WS:FindFirstChild("SpawnLocation")
+        if lobby then
+            LP.Character.HumanoidRootPart.CFrame = lobby.CFrame * CFrame.new(0, 3, 0)
+            Notify("Teleporte", "Teleportado ao Lobby!")
+        else
+            Notify("Erro", "Lobby não encontrado!")
+        end
+    end
+end)
+
+AddButton(telePage, "Teleportar à Emergência", function()
+    if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+        local emerg = WS:FindFirstChild("Emergency") or WS:FindFirstChild("EmergencyRoom")
+        if emerg then
+            LP.Character.HumanoidRootPart.CFrame = emerg.CFrame * CFrame.new(0, 3, 0)
+            Notify("Teleporte", "Teleportado à Emergência!")
+        else
+            Notify("Erro", "Emergência não encontrada!")
+        end
+    end
+end)
+
+AddButton(telePage, "Teleportar à Farmácia", function()
+    if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+        local farm = WS:F
